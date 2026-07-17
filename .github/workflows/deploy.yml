@@ -33,6 +33,10 @@ jobs:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
 
+      - name: Verify API URL baked into build
+        working-directory: packages/client
+        run: grep -r "onrender" dist/assets/*.js || echo "NOT FOUND IN BUILD OUTPUT"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: packages/client/dist
