@@ -16,9 +16,11 @@ async function bootstrap() {
 
   // Bind explicitly to 127.0.0.1 -- avoids Windows' occasionally-flaky
   // IPv4/IPv6 "localhost" resolution causing intermittent ERR_CONNECTION_REFUSED.
-  httpServer.listen(env.port, '127.0.0.1', () => {
-    console.log(`🚀 ColorWin server running on http://127.0.0.1:${env.port}`);
-  });
+  const host = env.nodeEnv === 'production' ? '0.0.0.0' : '127.0.0.1';
+
+httpServer.listen(env.port, host, () => {
+  console.log(`🚀 ColorWin server running on ${host}:${env.port}`);
+});
 }
 
 bootstrap();
