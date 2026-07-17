@@ -5,7 +5,7 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io('http://127.0.0.1:4000', {
+    socket = io(import.meta.env.VITE_API_URL || 'http://127.0.0.1:4000', {
       auth: {
         token: useAuthStore.getState().accessToken,
       },
