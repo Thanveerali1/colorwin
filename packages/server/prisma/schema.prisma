@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Color {
+  RED
+  GREEN
+  VIOLET
+}
+
+enum RoundPhase {
+  BETTING
+  LOCKED
+  RESULT
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  BET
+  BET_CANCELLED
+  WIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  createdAt    DateTime @default(now())
+
+  resetOtpHash      String?
+  resetOtpExpiresAt DateTime?
+  resetOtpAttempts  Int       @default(0)
+
+  wallet       Wallet?
+  bets         Bet[]
+  transactions Transaction[]
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Transaction {
+  id        String          @id @default(uuid())
+  type      TransactionType
+  amount    Int
+  createdAt DateTime        @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  betId String?
+  bet   Bet?    @relation(fields: [betId], references: [id])
+}
+
+model Round {
+  id         String     @id @default(uuid())
+  phase      RoundPhase @default(BETTING)
+  result     Color?
+  poolRed    Int        @default(0)
+  poolGreen  Int        @default(0)
+  poolViolet Int        @default(0)
+  startedAt  DateTime   @default(now())
+  lockedAt   DateTime?
+  resultAt   DateTime?
+
+  bets Bet[]
+}
+
+model Bet {
+  id        String   @id @default(uuid())
+  color     Color
+  amount    Int
+  won       Boolean?
+  payout    Int?
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id])
+
+  transactions Transaction[]
+}
