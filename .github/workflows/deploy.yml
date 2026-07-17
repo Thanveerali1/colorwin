@@ -23,6 +23,9 @@ jobs:
         working-directory: packages/client
         run: npm install
 
+      - name: Debug env
+        run: echo "VITE_API_URL is [${{ vars.VITE_API_URL }}]"
+
       - name: Build
         working-directory: packages/client
         run: npm run build
