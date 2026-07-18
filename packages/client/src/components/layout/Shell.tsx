@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { getWallet } from '../../api/wallet.api';
 
@@ -75,7 +75,17 @@ export default function Shell({ children }: ShellProps) {
         </div>
       </header>
 
-      <main className="flex-1 max-w-lg w-full mx-auto p-5">{children}</main>
+      <main className="flex-1 max-w-lg w-full mx-auto p-5">
+        {children}
+        <div className="flex justify-center gap-4 pt-6 pb-2">
+          <Link to="/privacy" className="text-slate-600 text-[11px] hover:text-slate-400">
+            Privacy Policy
+          </Link>
+          <Link to="/terms" className="text-slate-600 text-[11px] hover:text-slate-400">
+            Terms of Service
+          </Link>
+        </div>
+      </main>
 
       <nav className="border-t border-slate-800 bg-slate-900 flex sticky bottom-0 pb-[env(safe-area-inset-bottom)]">
         {navItems.map((item) => (

@@ -5,6 +5,9 @@ import HomePage from './pages/HomePage';
 import WalletPage from './pages/WalletPage';
 import ProfilePage from './pages/ProfilePage';
 import GamePage from './pages/GamePage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import CookieConsent from './components/CookieConsent';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.accessToken);
@@ -17,6 +20,8 @@ function App() {
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route
           path="/wallet"
           element={
@@ -42,6 +47,7 @@ function App() {
           }
         />
       </Routes>
+      <CookieConsent />
     </HashRouter>
   );
 }
