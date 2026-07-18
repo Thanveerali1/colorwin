@@ -22,6 +22,9 @@ export const env = {
   // bare origin with no path).
   appUrl: process.env.APP_URL || 'http://127.0.0.1:5173',
   googleClientId: required('GOOGLE_CLIENT_ID'),
-  gmailUser: required('GMAIL_USER'),
-  gmailAppPassword: required('GMAIL_APP_PASSWORD'),
+  // Resend (HTTP-based email API) -- switched from Gmail SMTP because
+  // Render's free tier blocks outbound SMTP ports (465/587/25) entirely,
+  // which no amount of timeout/IPv4 tuning could work around. Resend sends
+  // over HTTPS (443), which is never blocked.
+  resendApiKey: required('RESEND_API_KEY'),
 };

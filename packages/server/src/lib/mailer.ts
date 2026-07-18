@@ -1,32 +1,15 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { env } from '../config/env';
 
-// Using explicit host/port/secure instead of the 'service: gmail' shorthand,
-// and forcing IPv4 (family: 4). Some cloud hosts (Render included) have
-// unreliable IPv6 routing to Gmail's SMTP servers, which manifests as
-// ETIMEDOUT/ENETUNREACH errors that are otherwise intermittent and hard to
-// reproduce locally.
-//
-// NOTE: cast as `any` here -- nodemailer's TS overload resolution for
-// createTransport gets confused by this combination of options in some
-// versions, even though the shape is valid at runtime.
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: env.gmailUser,
-    pass: env.gmailAppPassword,
-  },
-  family: 4,
-  connectionTimeout: 15_000,
-  greetingTimeout: 15_000,
-  socketTimeout: 15_000,
-} as any);
+const resend = new Resend(env.resendApiKey);
+
+// Using Resend's shared test sender for now. Once a real domain is verified
+// on Resend, switch this to something like "ColorWin <noreply@yourdomain.com>".
+const FROM_ADDRESS = 'ColorWin <onboarding@resend.dev>';
 
 export async function sendOtpEmail(to: string, otp: string) {
-  await transporter.sendMail({
-    from: `"ColorWin" <${env.gmailUser}>`,
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
     to,
     subject: 'Your ColorWin password reset code',
     html: `
@@ -38,13 +21,17 @@ export async function sendOtpEmail(to: string, otp: string) {
       </div>
     `,
   });
+
+  if (error) {
+    throw new Error(`Resend error: ${error.message}`);
+  }
 }
 
 export async function sendVerificationEmail(to: string, token: string) {
   const link = `${env.appUrl}/#/verify-email?token=${token}`;
 
-  await transporter.sendMail({
-    from: `"ColorWin" <${env.gmailUser}>`,
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
     to,
     subject: 'Verify your ColorWin email',
     html: `
@@ -60,4 +47,8 @@ export async function sendVerificationEmail(to: string, token: string) {
       </div>
     `,
   });
+
+  if (error) {
+    throw new Error(`Resend error: ${error.message}`);
+  }
 }
