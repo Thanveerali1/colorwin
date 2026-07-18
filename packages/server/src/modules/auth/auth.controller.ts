@@ -139,14 +139,8 @@ authRouter.get('/me', async (req: AuthedRequest, res) => {
 });
 
 authRouter.post('/resend-verification', emailVerificationLimiter, async (req: AuthedRequest, res) => {
-  try {
-    await resendVerificationEmail(req.userId!);
-    res.json({ message: 'If your email is unverified, a new link has been sent.' });
-  } catch (err) {
-    if (err instanceof Error && err.message === 'EMAIL_SEND_FAILED') {
-      return res.status(502).json({ error: 'EMAIL_SEND_FAILED' });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'INTERNAL_ERROR' });
-  }
+  // resendVerificationEmail is fire-and-forget internally -- this responds
+  // immediately regardless of whether the email send itself succeeds.
+  await resendVerificationEmail(req.userId!);
+  res.json({ message: 'If your email is unverified, a new link has been sent.' });
 });

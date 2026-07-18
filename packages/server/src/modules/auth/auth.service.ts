@@ -52,12 +52,13 @@ export async function signup(input: SignupInput) {
     return created;
   });
 
-  // CRITICAL: never let a mail failure crash signup or the whole process.
-  try {
-    await sendVerificationEmail(user.email, verifyToken);
-  } catch (err) {
+  // Fire-and-forget: do NOT await this. Gmail's SMTP connection can take
+  // 15-45s per timeout stage (see mailer.ts), and failures can take
+  // 1-2 minutes total to give up. The account is already created and the
+  // user should never wait on email delivery to finish signing up.
+  sendVerificationEmail(user.email, verifyToken).catch((err) => {
     console.error('Failed to send verification email:', err);
-  }
+  });
 
   return issueTokens(user.id);
 }
@@ -145,14 +146,12 @@ export async function resendVerificationEmail(userId: string) {
     data: { verifyTokenHash, verifyTokenExpiresAt },
   });
 
-  // CRITICAL: this was previously unguarded and a mail failure here crashed
-  // the entire production server. Never let a mail failure escape.
-  try {
-    await sendVerificationEmail(user.email, verifyToken);
-  } catch (err) {
+  // Fire-and-forget -- same reasoning as signup(). The route responds
+  // immediately; email delivery (success or failure) happens in the
+  // background and is only ever logged, never blocks the response.
+  sendVerificationEmail(user.email, verifyToken).catch((err) => {
     console.error('Failed to resend verification email:', err);
-    throw new Error('EMAIL_SEND_FAILED');
-  }
+  });
 }
 
 export async function getMe(userId: string) {
@@ -193,13 +192,11 @@ export async function requestPasswordReset(email: string) {
     },
   });
 
-  // CRITICAL: this was previously unguarded and a mail failure here crashed
-  // the entire production server. Never let a mail failure escape.
-  try {
-    await sendOtpEmail(user.email, otp);
-  } catch (err) {
+  // Fire-and-forget -- same reasoning as signup(). Never block the response
+  // on Gmail's SMTP connection.
+  sendOtpEmail(user.email, otp).catch((err) => {
     console.error('Failed to send OTP email:', err);
-  }
+  });
 }
 
 export async function resetPasswordWithOtp(email: string, otp: string, newPassword: string) {
