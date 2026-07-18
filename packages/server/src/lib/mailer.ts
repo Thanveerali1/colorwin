@@ -6,6 +6,10 @@ import { env } from '../config/env';
 // unreliable IPv6 routing to Gmail's SMTP servers, which manifests as
 // ETIMEDOUT/ENETUNREACH errors that are otherwise intermittent and hard to
 // reproduce locally.
+//
+// NOTE: cast as `any` here -- nodemailer's TS overload resolution for
+// createTransport gets confused by this combination of options in some
+// versions, even though the shape is valid at runtime.
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
@@ -18,7 +22,7 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 15_000,
   greetingTimeout: 15_000,
   socketTimeout: 15_000,
-});
+} as any);
 
 export async function sendOtpEmail(to: string, otp: string) {
   await transporter.sendMail({
