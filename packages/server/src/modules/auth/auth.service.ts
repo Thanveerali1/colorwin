@@ -1,14 +1,18 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../lib/jwt';
 import type { SignupInput, LoginInput } from './auth.schema';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../../config/env';
-import crypto from 'crypto';
-import { sendOtpEmail } from '../../lib/mailer';
+import { sendOtpEmail, sendVerificationEmail } from '../../lib/mailer';
 
 const SALT_ROUNDS = 10;
 const SIGNUP_BONUS = 5000; // starting Play Coins
+
+function sha256(value: string): string {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
 
 export async function signup(input: SignupInput) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
@@ -18,12 +22,19 @@ export async function signup(input: SignupInput) {
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
+  const verifyToken = crypto.randomBytes(32).toString('hex');
+  const verifyTokenHash = sha256(verifyToken);
+  const verifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
   const user = await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
         name: input.name,
         email: input.email,
         passwordHash,
+        emailVerified: false,
+        verifyTokenHash,
+        verifyTokenExpiresAt,
         wallet: {
           create: { balance: SIGNUP_BONUS },
         },
@@ -40,6 +51,13 @@ export async function signup(input: SignupInput) {
 
     return created;
   });
+
+  // Best-effort: don't fail signup if the email send has a hiccup.
+  try {
+    await sendVerificationEmail(user.email, verifyToken);
+  } catch (err) {
+    console.error('Failed to send verification email:', err);
+  }
 
   return issueTokens(user.id);
 }
@@ -61,8 +79,6 @@ export async function login(input: LoginInput) {
 const googleClient = new OAuth2Client(env.googleClientId);
 
 export async function loginWithGoogle(idToken: string) {
-  // Verifies the token's signature and audience directly with Google --
-  // never trusts a client-supplied claim of "this is a real Google user."
   let payload;
   try {
     const ticket = await googleClient.verifyIdToken({
@@ -86,36 +102,66 @@ export async function loginWithGoogle(idToken: string) {
         data: {
           name: payload.name || payload.email!.split('@')[0],
           email: payload.email!,
+          emailVerified: true, // Google already verified this address
           wallet: { create: { balance: SIGNUP_BONUS } },
-       },
+        },
       });
       await tx.transaction.create({
         data: { userId: created.id, type: 'DEPOSIT', amount: SIGNUP_BONUS },
       });
       return created;
     });
+  } else if (!user.emailVerified) {
+    // A pre-existing password account signing in with Google for the first
+    // time on the same (Google-verified) address -- mark it verified too.
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
   }
 
   return { ...issueTokens(user.id), name: user.name };
 }
 
-export function refreshAccessToken(refreshToken: string) {
-  try {
-    const payload = verifyRefreshToken(refreshToken);
-    return { accessToken: signAccessToken({ userId: payload.userId }) };
-  } catch {
-    throw new Error('INVALID_REFRESH_TOKEN');
+export async function verifyEmail(token: string) {
+  const tokenHash = sha256(token);
+  const user = await prisma.user.findFirst({ where: { verifyTokenHash: tokenHash } });
+
+  if (!user || !user.verifyTokenExpiresAt || user.verifyTokenExpiresAt.getTime() < Date.now()) {
+    throw new Error('INVALID_OR_EXPIRED_TOKEN');
   }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { emailVerified: true, verifyTokenHash: null, verifyTokenExpiresAt: null },
+  });
 }
 
+export async function resendVerificationEmail(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.emailVerified) return; // no-op either way, nothing to leak
+
+  const verifyToken = crypto.randomBytes(32).toString('hex');
+  const verifyTokenHash = sha256(verifyToken);
+  const verifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { verifyTokenHash, verifyTokenExpiresAt },
+  });
+
+  await sendVerificationEmail(user.email, verifyToken);
+}
+
+export async function getMe(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true, emailVerified: true },
+  });
+  if (!user) throw new Error('NOT_FOUND');
+  return user;
+}
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_OTP_ATTEMPTS = 5;
 const OTP_REQUEST_COOLDOWN_MS = 60 * 1000; // 1 minute between requests
-
-function hashOtp(otp: string): string {
-  return crypto.createHash('sha256').update(otp).digest('hex');
-}
 
 export async function requestPasswordReset(email: string) {
   const user = await prisma.user.findUnique({ where: { email } });
@@ -124,8 +170,6 @@ export async function requestPasswordReset(email: string) {
   // prevents attackers from using this endpoint to discover valid accounts.
   if (!user) return;
 
-  // Rate limit: don't allow a new OTP request within the cooldown window
-  // of the last one, to prevent spamming a victim's inbox.
   if (
     user.resetOtpExpiresAt &&
     user.resetOtpExpiresAt.getTime() - OTP_EXPIRY_MS + OTP_REQUEST_COOLDOWN_MS > Date.now()
@@ -133,13 +177,12 @@ export async function requestPasswordReset(email: string) {
     return;
   }
 
-  // Cryptographically random 6-digit code -- NOT Math.random().
   const otp = crypto.randomInt(100000, 999999).toString();
 
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      resetOtpHash: hashOtp(otp),
+      resetOtpHash: sha256(otp),
       resetOtpExpiresAt: new Date(Date.now() + OTP_EXPIRY_MS),
       resetOtpAttempts: 0,
     },
@@ -163,10 +206,9 @@ export async function resetPasswordWithOtp(email: string, otp: string, newPasswo
     throw new Error('TOO_MANY_ATTEMPTS');
   }
 
-  const providedHash = hashOtp(otp);
+  const providedHash = sha256(otp);
 
   if (providedHash !== user.resetOtpHash) {
-    // Record the failed attempt so repeated guesses eventually lock out.
     await prisma.user.update({
       where: { id: user.id },
       data: { resetOtpAttempts: { increment: 1 } },
@@ -176,7 +218,6 @@ export async function resetPasswordWithOtp(email: string, otp: string, newPasswo
 
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-  // Success -- update password AND invalidate the OTP so it can't be reused.
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -186,6 +227,15 @@ export async function resetPasswordWithOtp(email: string, otp: string, newPasswo
       resetOtpAttempts: 0,
     },
   });
+}
+
+export function refreshAccessToken(refreshToken: string) {
+  try {
+    const payload = verifyRefreshToken(refreshToken);
+    return { accessToken: signAccessToken({ userId: payload.userId }) };
+  } catch {
+    throw new Error('INVALID_REFRESH_TOKEN');
+  }
 }
 
 function issueTokens(userId: string) {

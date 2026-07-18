@@ -34,6 +34,10 @@ model User {
   passwordHash String?
   createdAt    DateTime @default(now())
 
+  emailVerified        Boolean   @default(false)
+  verifyTokenHash      String?
+  verifyTokenExpiresAt DateTime?
+
   resetOtpHash      String?
   resetOtpExpiresAt DateTime?
   resetOtpAttempts  Int       @default(0)

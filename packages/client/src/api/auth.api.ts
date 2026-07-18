@@ -5,6 +5,12 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+export interface MeResponse {
+  name: string;
+  email: string;
+  emailVerified: boolean;
+}
+
 export async function signupRequest(name: string, email: string, password: string) {
   const res = await api.post<AuthResponse>('/auth/signup', { name, email, password });
   return res.data;
@@ -31,5 +37,20 @@ export async function resetPasswordRequest(email: string, otp: string, newPasswo
     otp,
     newPassword,
   });
+  return res.data;
+}
+
+export async function verifyEmailRequest(token: string) {
+  const res = await api.post<{ message: string }>('/auth/verify-email', { token });
+  return res.data;
+}
+
+export async function resendVerificationRequest() {
+  const res = await api.post<{ message: string }>('/auth/resend-verification');
+  return res.data;
+}
+
+export async function getMeRequest() {
+  const res = await api.get<MeResponse>('/auth/me');
   return res.data;
 }
