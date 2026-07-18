@@ -8,7 +8,6 @@ import ProfilePage from './pages/ProfilePage';
 import GamePage from './pages/GamePage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
-import VerifyEmailPage from './pages/VerifyEmailPage';
 import CookieConsent from './components/CookieConsent';
 import { trackPageView } from './lib/analytics';
 
@@ -37,7 +36,6 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route
           path="/wallet"
           element={

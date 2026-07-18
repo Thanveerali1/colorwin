@@ -24,25 +24,3 @@ export async function sendOtpEmail(to: string, otp: string) {
     `,
   });
 }
-
-export async function sendVerificationEmail(to: string, token: string) {
-  const link = `${env.appUrl}/#/verify-email?token=${token}`;
-
-  await transporter.sendMail({
-    from: `"ColorWin" <${env.gmailUser}>`,
-    to,
-    subject: 'Verify your ColorWin email',
-    html: `
-      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto;">
-        <h2 style="color: #1e293b;">Verify your email</h2>
-        <p>Thanks for signing up for ColorWin. Click below to verify your email address. This link expires in 24 hours.</p>
-        <p style="text-align: center; margin: 24px 0;">
-          <a href="${link}" style="background: #fbbf24; color: #1e293b; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">
-            Verify email
-          </a>
-        </p>
-        <p style="color: #64748b; font-size: 13px;">If you didn't create this account, you can safely ignore this email.</p>
-      </div>
-    `,
-  });
-}

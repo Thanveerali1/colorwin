@@ -5,7 +5,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../lib
 import type { SignupInput, LoginInput } from './auth.schema';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../../config/env';
-import { sendOtpEmail, sendVerificationEmail } from '../../lib/mailer';
+import { sendOtpEmail } from '../../lib/mailer';
 
 const SALT_ROUNDS = 10;
 const SIGNUP_BONUS = 5000; // starting Play Coins
@@ -22,19 +22,12 @@ export async function signup(input: SignupInput) {
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-  const verifyToken = crypto.randomBytes(32).toString('hex');
-  const verifyTokenHash = sha256(verifyToken);
-  const verifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
-
   const user = await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
         name: input.name,
         email: input.email,
         passwordHash,
-        emailVerified: false,
-        verifyTokenHash,
-        verifyTokenExpiresAt,
         wallet: {
           create: { balance: SIGNUP_BONUS },
         },
@@ -50,14 +43,6 @@ export async function signup(input: SignupInput) {
     });
 
     return created;
-  });
-
-  // Fire-and-forget: do NOT await this. Gmail's SMTP connection can take
-  // 15-45s per timeout stage (see mailer.ts), and failures can take
-  // 1-2 minutes total to give up. The account is already created and the
-  // user should never wait on email delivery to finish signing up.
-  sendVerificationEmail(user.email, verifyToken).catch((err) => {
-    console.error('Failed to send verification email:', err);
   });
 
   return issueTokens(user.id);
@@ -103,7 +88,6 @@ export async function loginWithGoogle(idToken: string) {
         data: {
           name: payload.name || payload.email!.split('@')[0],
           email: payload.email!,
-          emailVerified: true, // Google already verified this address
           wallet: { create: { balance: SIGNUP_BONUS } },
         },
       });
@@ -112,55 +96,9 @@ export async function loginWithGoogle(idToken: string) {
       });
       return created;
     });
-  } else if (!user.emailVerified) {
-    await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
   }
 
   return { ...issueTokens(user.id), name: user.name };
-}
-
-export async function verifyEmail(token: string) {
-  const tokenHash = sha256(token);
-  const user = await prisma.user.findFirst({ where: { verifyTokenHash: tokenHash } });
-
-  if (!user || !user.verifyTokenExpiresAt || user.verifyTokenExpiresAt.getTime() < Date.now()) {
-    throw new Error('INVALID_OR_EXPIRED_TOKEN');
-  }
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { emailVerified: true, verifyTokenHash: null, verifyTokenExpiresAt: null },
-  });
-}
-
-export async function resendVerificationEmail(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.emailVerified) return; // no-op either way, nothing to leak
-
-  const verifyToken = crypto.randomBytes(32).toString('hex');
-  const verifyTokenHash = sha256(verifyToken);
-  const verifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { verifyTokenHash, verifyTokenExpiresAt },
-  });
-
-  // Fire-and-forget -- same reasoning as signup(). The route responds
-  // immediately; email delivery (success or failure) happens in the
-  // background and is only ever logged, never blocks the response.
-  sendVerificationEmail(user.email, verifyToken).catch((err) => {
-    console.error('Failed to resend verification email:', err);
-  });
-}
-
-export async function getMe(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { name: true, email: true, emailVerified: true },
-  });
-  if (!user) throw new Error('NOT_FOUND');
-  return user;
 }
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
@@ -192,8 +130,7 @@ export async function requestPasswordReset(email: string) {
     },
   });
 
-  // Fire-and-forget -- same reasoning as signup(). Never block the response
-  // on Gmail's SMTP connection.
+  // Fire-and-forget -- never block the response on the mail send.
   sendOtpEmail(user.email, otp).catch((err) => {
     console.error('Failed to send OTP email:', err);
   });

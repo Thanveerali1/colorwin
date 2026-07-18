@@ -7,17 +7,12 @@ import {
   loginWithGoogle,
   requestPasswordReset,
   resetPasswordWithOtp,
-  verifyEmail,
-  resendVerificationEmail,
-  getMe,
 } from './auth.service';
-import { requireAuth, AuthedRequest } from './auth.middleware';
 import {
   loginLimiter,
   signupLimiter,
   passwordResetRequestLimiter,
   passwordResetVerifyLimiter,
-  emailVerificationLimiter,
   googleLoginLimiter,
 } from '../../lib/rateLimit';
 
@@ -112,35 +107,4 @@ authRouter.post('/reset-password', passwordResetVerifyLimiter, async (req, res) 
     console.error(err);
     res.status(500).json({ error: 'INTERNAL_ERROR' });
   }
-});
-
-authRouter.post('/verify-email', emailVerificationLimiter, async (req, res) => {
-  const { token } = req.body;
-  if (!token || typeof token !== 'string') {
-    return res.status(400).json({ error: 'MISSING_TOKEN' });
-  }
-  try {
-    await verifyEmail(token);
-    res.json({ message: 'Email verified.' });
-  } catch {
-    res.status(400).json({ error: 'INVALID_OR_EXPIRED_TOKEN' });
-  }
-});
-
-authRouter.use(requireAuth);
-
-authRouter.get('/me', async (req: AuthedRequest, res) => {
-  try {
-    const me = await getMe(req.userId!);
-    res.json(me);
-  } catch {
-    res.status(404).json({ error: 'NOT_FOUND' });
-  }
-});
-
-authRouter.post('/resend-verification', emailVerificationLimiter, async (req: AuthedRequest, res) => {
-  // resendVerificationEmail is fire-and-forget internally -- this responds
-  // immediately regardless of whether the email send itself succeeds.
-  await resendVerificationEmail(req.userId!);
-  res.json({ message: 'If your email is unverified, a new link has been sent.' });
 });

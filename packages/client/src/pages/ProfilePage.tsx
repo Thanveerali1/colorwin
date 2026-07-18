@@ -3,8 +3,6 @@ import Shell from '../components/layout/Shell';
 import { useAuthStore } from '../store/authStore';
 import { getTransactions } from '../api/transactions.api';
 import type { Transaction, HistoryFilter } from '../api/transactions.api';
-import { getMeRequest, resendVerificationRequest } from '../api/auth.api';
-import type { MeResponse } from '../api/auth.api';
 
 const TABS: { key: HistoryFilter; label: string }[] = [
   { key: 'bets', label: 'Bets' },
@@ -63,15 +61,6 @@ export default function ProfilePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [me, setMe] = useState<MeResponse | null>(null);
-  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
-
-  useEffect(() => {
-    getMeRequest()
-      .then(setMe)
-      .catch(() => setMe(null));
-  }, []);
-
   useEffect(() => {
     setLoading(true);
     getTransactions(tab)
@@ -80,16 +69,6 @@ export default function ProfilePage() {
       .finally(() => setLoading(false));
   }, [tab]);
 
-  async function handleResend() {
-    setResendStatus('sending');
-    try {
-      await resendVerificationRequest();
-      setResendStatus('sent');
-    } catch {
-      setResendStatus('idle');
-    }
-  }
-
   return (
     <Shell>
       <div className="flex flex-col gap-5">
@@ -97,27 +76,6 @@ export default function ProfilePage() {
           <h1 className="text-2xl font-bold">{user?.name || 'Player'}</h1>
           <p className="text-slate-400 text-sm mt-1">Play-money profile — demo session only.</p>
         </div>
-
-        {me && !me.emailVerified && (
-          <div className="bg-amber-400/10 border border-amber-400/40 rounded-2xl p-4 flex flex-col gap-2">
-            <p className="text-amber-400 text-sm font-semibold">📧 Verify your email</p>
-            <p className="text-slate-300 text-xs">
-              We sent a verification link to <strong>{me.email}</strong>. Check your inbox (and spam
-              folder) to confirm your address.
-            </p>
-            <button
-              onClick={handleResend}
-              disabled={resendStatus !== 'idle'}
-              className="self-start bg-amber-400 text-slate-900 text-xs font-bold px-4 py-1.5 rounded-full disabled:opacity-50"
-            >
-              {resendStatus === 'sending'
-                ? 'Sending...'
-                : resendStatus === 'sent'
-                ? 'Sent — check your inbox'
-                : 'Resend verification email'}
-            </button>
-          </div>
-        )}
 
         <div className="flex bg-slate-800 rounded-xl p-1">
           {TABS.map((t) => (
