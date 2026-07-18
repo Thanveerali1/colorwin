@@ -1,12 +1,23 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 
+// Using explicit host/port/secure instead of the 'service: gmail' shorthand,
+// and forcing IPv4 (family: 4). Some cloud hosts (Render included) have
+// unreliable IPv6 routing to Gmail's SMTP servers, which manifests as
+// ETIMEDOUT/ENETUNREACH errors that are otherwise intermittent and hard to
+// reproduce locally.
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: env.gmailUser,
     pass: env.gmailAppPassword,
   },
+  family: 4,
+  connectionTimeout: 15_000,
+  greetingTimeout: 15_000,
+  socketTimeout: 15_000,
 });
 
 export async function sendOtpEmail(to: string, otp: string) {

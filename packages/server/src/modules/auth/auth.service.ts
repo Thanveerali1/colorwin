@@ -52,7 +52,7 @@ export async function signup(input: SignupInput) {
     return created;
   });
 
-  // Best-effort: don't fail signup if the email send has a hiccup.
+  // CRITICAL: never let a mail failure crash signup or the whole process.
   try {
     await sendVerificationEmail(user.email, verifyToken);
   } catch (err) {
@@ -112,8 +112,6 @@ export async function loginWithGoogle(idToken: string) {
       return created;
     });
   } else if (!user.emailVerified) {
-    // A pre-existing password account signing in with Google for the first
-    // time on the same (Google-verified) address -- mark it verified too.
     await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
   }
 
@@ -147,7 +145,14 @@ export async function resendVerificationEmail(userId: string) {
     data: { verifyTokenHash, verifyTokenExpiresAt },
   });
 
-  await sendVerificationEmail(user.email, verifyToken);
+  // CRITICAL: this was previously unguarded and a mail failure here crashed
+  // the entire production server. Never let a mail failure escape.
+  try {
+    await sendVerificationEmail(user.email, verifyToken);
+  } catch (err) {
+    console.error('Failed to resend verification email:', err);
+    throw new Error('EMAIL_SEND_FAILED');
+  }
 }
 
 export async function getMe(userId: string) {
@@ -188,7 +193,13 @@ export async function requestPasswordReset(email: string) {
     },
   });
 
-  await sendOtpEmail(user.email, otp);
+  // CRITICAL: this was previously unguarded and a mail failure here crashed
+  // the entire production server. Never let a mail failure escape.
+  try {
+    await sendOtpEmail(user.email, otp);
+  } catch (err) {
+    console.error('Failed to send OTP email:', err);
+  }
 }
 
 export async function resetPasswordWithOtp(email: string, otp: string, newPassword: string) {
