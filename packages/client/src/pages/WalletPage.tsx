@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Shell from '../components/layout/Shell';
 import { getWallet, depositRequest, withdrawRequest } from '../api/wallet.api';
+import { trackEvent } from '../lib/analytics';
 
 export default function WalletPage() {
   const [balance, setBalance] = useState<number | null>(null);
@@ -32,6 +33,7 @@ export default function WalletPage() {
       const wallet =
         mode === 'deposit' ? await depositRequest(numAmount) : await withdrawRequest(numAmount);
       setBalance(wallet.balance);
+      trackEvent(mode === 'deposit' ? 'deposit_made' : 'withdrawal_made', { amount: numAmount });
       setAmount('');
     } catch (err: any) {
       setError(

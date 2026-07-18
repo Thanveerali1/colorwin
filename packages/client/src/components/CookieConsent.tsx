@@ -24,9 +24,9 @@ export default function CookieConsent() {
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-700 px-5 py-4">
       <div className="max-w-lg mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
         <p className="text-xs text-slate-300 leading-relaxed flex-1">
-          ColorWin uses your browser's local storage to keep you signed in, and Google Sign-In (if you
-          use it) is subject to Google's own cookie policy. We don't use tracking or advertising
-          cookies.{' '}
+          ColorWin uses your browser's local storage to keep you signed in, and PostHog for basic
+          product analytics (page views and in-app actions — no session recording). Google Sign-In (if
+          you use it) is subject to Google's own cookie policy. We don't use advertising cookies.{' '}
           <Link to="/privacy" className="text-amber-400 underline">
             Learn more
           </Link>

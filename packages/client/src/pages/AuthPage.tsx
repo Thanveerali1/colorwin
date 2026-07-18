@@ -8,10 +8,22 @@ import {
   resetPasswordRequest,
 } from '../api/auth.api';
 import { useAuthStore } from '../store/authStore';
+import { identifyUser, trackEvent } from '../lib/analytics';
 
 declare global {
   interface Window {
     google: any;
+  }
+}
+
+// Decodes the JWT payload only (no signature verification) purely to pull
+// the userId for analytics identification -- never used for auth decisions.
+function getUserIdFromToken(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.userId || null;
+  } catch {
+    return null;
   }
 }
 
@@ -61,6 +73,11 @@ export default function AuthPage() {
         try {
           const data = await googleLoginRequest(response.credential);
           setAuth(data.accessToken, data.refreshToken, { name: data.name });
+
+          const userId = getUserIdFromToken(data.accessToken);
+          if (userId) identifyUser(userId, { name: data.name, auth_method: 'google' });
+          trackEvent('google_signin_used');
+
           navigate('/');
         } catch {
           setError('Google sign-in failed.');
@@ -88,7 +105,13 @@ export default function AuthPage() {
           ? await signupRequest(name, email, password)
           : await loginRequest(email, password);
 
-      setAuth(data.accessToken, data.refreshToken, { name: name || email.split('@')[0] });
+      const resolvedName = name || email.split('@')[0];
+      setAuth(data.accessToken, data.refreshToken, { name: resolvedName });
+
+      const userId = getUserIdFromToken(data.accessToken);
+      if (userId) identifyUser(userId, { name: resolvedName, auth_method: 'password' });
+      trackEvent(mode === 'signup' ? 'signup_completed' : 'login_completed');
+
       navigate('/');
     } catch (err: any) {
       const data = err.response?.data;

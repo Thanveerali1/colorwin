@@ -6,6 +6,7 @@ import type { Round, Color, Bet } from '../api/round.api';
 import Leaderboard from '../components/game/Leaderboard';
 import WinPopup from '../components/game/WinPopup';
 import HistoryPopup from '../components/game/HistoryPopup';
+import { trackEvent } from '../lib/analytics';
 
 const COLORS: { key: Color; label: string; bg: string; mult: string }[] = [
   { key: 'RED', label: 'RED', bg: 'bg-red-500', mult: '2.0x' },
@@ -146,8 +147,6 @@ export default function GamePage() {
   const [showHistory, setShowHistory] = useState(false);
 
   function landReelsOn(color: Color) {
-    // Pull the lever the moment the machine commits to its final spin --
-    // physically, this is the "decision" moment on a real slot machine.
     setLeverPulling(true);
     setTimeout(() => setLeverPulling(false), 1300);
 
@@ -236,6 +235,7 @@ export default function GamePage() {
           setTimeout(() => {
             setWinPopup({ amount, color: data.result });
           }, Math.max(...DURATIONS) + 300);
+          trackEvent('round_won', { color: data.result, amount });
         }
         return currentBets;
       });
@@ -264,6 +264,7 @@ export default function GamePage() {
     try {
       const bet = await placeBetRequest(selectedColor, selectedChip);
       setMyBets((prev) => [...prev, bet]);
+      trackEvent('bet_placed', { color: selectedColor, amount: selectedChip });
       setSelectedColor(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not place bet.');
@@ -327,7 +328,6 @@ export default function GamePage() {
         {/* Slot machine cabinet */}
         <div className="relative pr-11">
           <div className="relative rounded-[26px] border-4 border-slate-700 bg-gradient-to-b from-slate-800 via-slate-900 to-black p-4 shadow-2xl">
-            {/* Marquee header */}
             <div className="flex items-center justify-center gap-2 mb-3">
               <Gear size={18} spinning={gearsSpinning} dir="cw" />
               <span className="font-black tracking-[0.2em] text-amber-400 text-sm animate-marquee-glow">
@@ -336,7 +336,6 @@ export default function GamePage() {
               <Gear size={18} spinning={gearsSpinning} dir="ccw" />
             </div>
 
-            {/* Reel window */}
             <div className="relative h-24 rounded-2xl overflow-hidden border-2 border-slate-950 bg-black grid grid-cols-3 gap-px shadow-inner">
               <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none" />
               <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none" />
@@ -366,7 +365,6 @@ export default function GamePage() {
               />
             </div>
 
-            {/* Base plate rivets */}
             <div className="flex justify-between mt-3 px-2">
               <span className="w-2 h-2 rounded-full bg-slate-600 shadow-inner" />
               <span className="w-2 h-2 rounded-full bg-slate-600 shadow-inner" />
@@ -375,7 +373,6 @@ export default function GamePage() {
             </div>
           </div>
 
-          {/* Pull lever */}
           <div className="absolute top-3 right-0 flex flex-col items-center">
             <div className="relative w-2 h-20 bg-gradient-to-b from-slate-500 to-slate-700 rounded-full">
               <div
@@ -388,7 +385,6 @@ export default function GamePage() {
           </div>
         </div>
 
-        {/* Bet color buttons */}
         <div className="grid grid-cols-3 gap-2">
           {COLORS.map((c) => (
             <button
@@ -405,7 +401,6 @@ export default function GamePage() {
           ))}
         </div>
 
-        {/* Chip selector */}
         <div className="flex gap-2 flex-wrap">
           {CHIP_VALUES.map((v) => (
             <button
@@ -423,7 +418,6 @@ export default function GamePage() {
           ))}
         </div>
 
-        {/* Custom amount entry */}
         <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2">
           <span className="text-slate-400 text-sm">🪙</span>
           <input
@@ -453,7 +447,6 @@ export default function GamePage() {
             : `Place bet — 🪙${selectedChip} on ${selectedColor || '—'}`}
         </button>
 
-        {/* My bets this round */}
         <div>
           <h3 className="font-semibold text-sm mb-2">Your bets this round</h3>
           {myBets.length === 0 ? (

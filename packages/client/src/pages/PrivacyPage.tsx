@@ -39,6 +39,13 @@ export default function PrivacyPage() {
               virtual currency).
             </li>
             <li>
+              <strong>Product usage data:</strong> we use PostHog, a product analytics tool, to
+              understand how the app is used — for example, which pages are visited and actions like
+              signing up, placing a bet, or making a deposit. These events are tied to an internal
+              account identifier, not directly to your name or email inside the analytics tool. We do
+              not use session recording or heatmap tracking.
+            </li>
+            <li>
               <strong>Technical data:</strong> standard information collected automatically by our
               hosting providers, such as IP address and browser type, for security and abuse
               prevention.
@@ -62,7 +69,8 @@ export default function PrivacyPage() {
         <Section title="5. Third parties we rely on">
           <ul className="list-disc pl-5 flex flex-col gap-1.5">
             <li><strong>Google Sign-In</strong> — for optional authentication via your Google account.</li>
-            <li><strong>Gmail</strong> — to deliver password reset codes.</li>
+            <li><strong>Gmail</strong> — to deliver password reset and email verification codes/links.</li>
+            <li><strong>PostHog</strong> — for product analytics (page views and in-app events), as described above.</li>
             <li>
               <strong>Infrastructure providers</strong> — our database, caching layer, backend server,
               and frontend hosting are provided by third-party cloud services that store and process
@@ -78,9 +86,9 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="7. Your choices">
-          You can log out at any time, which removes your session token from your browser. You can
-          request access to, correction of, or deletion of your personal data by reaching out through
-          the contact method below.
+          You can log out at any time, which removes your session token from your browser and clears
+          your analytics identity going forward. You can request access to, correction of, or deletion
+          of your personal data by reaching out through the contact method below.
         </Section>
 
         <Section title="8. Children">

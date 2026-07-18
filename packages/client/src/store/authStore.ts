@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { resetAnalyticsIdentity } from '../lib/analytics';
 
 interface User {
   name: string;
@@ -22,7 +23,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       setAuth: (accessToken, refreshToken, user) => set({ accessToken, refreshToken, user }),
       setAccessToken: (accessToken) => set({ accessToken }),
-      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
+      logout: () => {
+        resetAnalyticsIdentity();
+        set({ accessToken: null, refreshToken: null, user: null });
+      },
     }),
     { name: 'colorwin-auth' }
   )
