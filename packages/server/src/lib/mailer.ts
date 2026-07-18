@@ -1,15 +1,17 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 
-const resend = new Resend(env.resendApiKey);
-
-// Using Resend's shared test sender for now. Once a real domain is verified
-// on Resend, switch this to something like "ColorWin <noreply@yourdomain.com>".
-const FROM_ADDRESS = 'ColorWin <onboarding@resend.dev>';
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: env.gmailUser,
+    pass: env.gmailAppPassword,
+  },
+});
 
 export async function sendOtpEmail(to: string, otp: string) {
-  const { error } = await resend.emails.send({
-    from: FROM_ADDRESS,
+  await transporter.sendMail({
+    from: `"ColorWin" <${env.gmailUser}>`,
     to,
     subject: 'Your ColorWin password reset code',
     html: `
@@ -21,17 +23,13 @@ export async function sendOtpEmail(to: string, otp: string) {
       </div>
     `,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 }
 
 export async function sendVerificationEmail(to: string, token: string) {
   const link = `${env.appUrl}/#/verify-email?token=${token}`;
 
-  const { error } = await resend.emails.send({
-    from: FROM_ADDRESS,
+  await transporter.sendMail({
+    from: `"ColorWin" <${env.gmailUser}>`,
     to,
     subject: 'Verify your ColorWin email',
     html: `
@@ -47,8 +45,4 @@ export async function sendVerificationEmail(to: string, token: string) {
       </div>
     `,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 }

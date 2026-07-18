@@ -17,14 +17,8 @@ export const env = {
   jwtAccessSecret: required('JWT_ACCESS_SECRET'),
   jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
   clientUrl: process.env.CLIENT_URL || 'http://127.0.0.1:5173',
-  // Full app URL including any subpath, used for links inside emails
-  // (different from clientUrl, which is only used for CORS and must be a
-  // bare origin with no path).
   appUrl: process.env.APP_URL || 'http://127.0.0.1:5173',
   googleClientId: required('GOOGLE_CLIENT_ID'),
-  // Resend (HTTP-based email API) -- switched from Gmail SMTP because
-  // Render's free tier blocks outbound SMTP ports (465/587/25) entirely,
-  // which no amount of timeout/IPv4 tuning could work around. Resend sends
-  // over HTTPS (443), which is never blocked.
-  resendApiKey: required('RESEND_API_KEY'),
+  gmailUser: required('GMAIL_USER'),
+  gmailAppPassword: required('GMAIL_APP_PASSWORD'),
 };
