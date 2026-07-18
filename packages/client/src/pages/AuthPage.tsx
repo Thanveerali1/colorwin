@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   signupRequest,
   loginRequest,
@@ -332,6 +332,18 @@ export default function AuthPage() {
             </button>
           </form>
         )}
+
+        <p className="text-slate-600 text-[11px] text-center leading-relaxed mt-5">
+          By continuing, you agree to ColorWin's{' '}
+          <Link to="/terms" className="text-slate-400 underline">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" className="text-slate-400 underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
