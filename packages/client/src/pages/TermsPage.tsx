@@ -41,7 +41,7 @@ export default function TermsPage() {
 
         <Section title="4. How the game works">
           <ul className="list-disc pl-5 flex flex-col gap-1.5">
-            <li>Each round, you may place one bet on one color (Red, Green, or Violet) using Play Coins.</li>
+            <li>Each round, you may place one bet on one color (Red, Blue, or Green) using Play Coins.</li>
             <li>
               The outcome of each round is determined by an independent, weighted random process run on
               our server. It is never influenced by the total amount bet on any color by you or other

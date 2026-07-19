@@ -6,7 +6,7 @@ export const LOCKED_DURATION_MS = 60_000;   // 1 minute
 export const RESULT_DURATION_MS = 6_000;    // pause before next round
 
 
-const PAYOUT_MULTIPLIER: Record<string, number> = { RED: 2, GREEN: 2, VIOLET: 4.5 };
+const PAYOUT_MULTIPLIER: Record<string, number> = { RED: 2, BLUE: 2, GREEN: 2 };
 
 type BroadcastFn = (event: string, payload: unknown) => void;
 let broadcast: BroadcastFn = () => {};
@@ -74,7 +74,7 @@ export async function resolveRound(roundId: string) {
   select: {
     poolRed: true,
     poolGreen: true,
-    poolViolet: true,
+    poolBlue: true,
   },
 });
 
@@ -85,7 +85,7 @@ if (!round) {
 const pools = [
   { color: "RED" as const, total: round.poolRed },
   { color: "GREEN" as const, total: round.poolGreen },
-  { color: "VIOLET" as const, total: round.poolViolet },
+  { color: "BLUE" as const, total: round.poolBlue },
 ];
 
 // Lowest total wins

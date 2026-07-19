@@ -21,7 +21,16 @@ export default function Shell({ children }: ShellProps) {
     }
     getWallet()
       .then((w) => setBalance(w.balance))
-      .catch(() => setBalance(null));
+      .catch((err) => {
+        setBalance(null);
+        // A 404 here means the token doesn't belong to a real wallet anymore
+        // (stale session from before a DB reset, or a deleted account).
+        // Force a fresh login instead of leaving the user staring at "...".
+        if (err.response?.status === 404) {
+          logout();
+          navigate('/auth');
+        }
+      });
   }, [location.pathname, token]);
 
   const navItems = [
@@ -45,7 +54,7 @@ export default function Shell({ children }: ShellProps) {
         <div className="flex items-center gap-2 font-bold text-lg">
           <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 -ml-1" />
-          <span className="w-2.5 h-2.5 rounded-full bg-violet-500 -ml-1 mr-1" />
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 -ml-1 mr-1" />
           ColorWin
         </div>
         <div className="flex items-center gap-3">

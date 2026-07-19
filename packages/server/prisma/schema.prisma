@@ -9,8 +9,8 @@ datasource db {
 
 enum Color {
   RED
+  BLUE
   GREEN
-  VIOLET
 }
 
 enum RoundPhase {
@@ -70,15 +70,15 @@ model Transaction {
 }
 
 model Round {
-  id         String     @id @default(uuid())
-  phase      RoundPhase @default(BETTING)
-  result     Color?
-  poolRed    Int        @default(0)
-  poolGreen  Int        @default(0)
-  poolViolet Int        @default(0)
-  startedAt  DateTime   @default(now())
-  lockedAt   DateTime?
-  resultAt   DateTime?
+  id        String     @id @default(uuid())
+  phase     RoundPhase @default(BETTING)
+  result    Color?
+  poolRed   Int        @default(0)
+  poolBlue  Int        @default(0)
+  poolGreen Int        @default(0)
+  startedAt DateTime   @default(now())
+  lockedAt  DateTime?
+  resultAt  DateTime?
 
   bets Bet[]
 }

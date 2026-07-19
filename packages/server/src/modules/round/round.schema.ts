@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const placeBetSchema = z.object({
-  color: z.enum(['RED', 'GREEN', 'VIOLET']),
+  color: z.enum(['RED', 'BLUE', 'GREEN']),
   amount: z.number().int().positive().max(100_000),
 });
 

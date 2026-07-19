@@ -13,7 +13,7 @@ const TABS: { key: HistoryFilter; label: string }[] = [
 const COLOR_DOT: Record<string, string> = {
   RED: 'bg-red-500',
   GREEN: 'bg-emerald-500',
-  VIOLET: 'bg-violet-500',
+  BLUE: 'bg-blue-500',
 };
 
 function formatTime(iso: string) {

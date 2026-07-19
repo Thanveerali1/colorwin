@@ -9,11 +9,11 @@ interface WinPopupProps {
 
 const COLOR_STYLES: Record<Color, { bg: string; border: string; glow: string }> = {
   RED: { bg: 'bg-red-500', border: 'border-red-500', glow: 'shadow-red-500/50' },
+  BLUE: { bg: 'bg-blue-500', border: 'border-blue-500', glow: 'shadow-blue-500/50' },
   GREEN: { bg: 'bg-emerald-500', border: 'border-emerald-500', glow: 'shadow-emerald-500/50' },
-  VIOLET: { bg: 'bg-violet-500', border: 'border-violet-500', glow: 'shadow-violet-500/50' },
 };
 
-const CONFETTI_COLORS = ['#FFC247', '#FF3B5C', '#00D98B', '#B24BF3', '#ffffff'];
+const CONFETTI_COLORS = ['#FFC247', '#FF3B5C', '#3B82F6', '#00D98B', '#ffffff'];
 
 function ConfettiPiece({ index }: { index: number }) {
   const left = Math.random() * 100;

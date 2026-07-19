@@ -19,10 +19,14 @@ export async function getRoundHistory(limit = 100) {
       startedAt: true,
       resultAt: true,
       poolRed: true,
+      poolBlue: true,
       poolGreen: true,
-      poolViolet: true,
     },
   });
+}
+
+export async function getMyBetForRound(userId: string, roundId: string) {
+  return prisma.bet.findFirst({ where: { userId, roundId } });
 }
 
 export async function placeBet(userId: string, input: PlaceBetInput) {
@@ -58,7 +62,7 @@ export async function placeBet(userId: string, input: PlaceBetInput) {
     });
 
     const poolField =
-      input.color === 'RED' ? 'poolRed' : input.color === 'GREEN' ? 'poolGreen' : 'poolViolet';
+      input.color === 'RED' ? 'poolRed' : input.color === 'BLUE' ? 'poolBlue' : 'poolGreen';
 
     await tx.round.update({
       where: { id: round.id },
@@ -91,7 +95,7 @@ export async function cancelBet(userId: string, betId: string) {
     });
 
     const poolField =
-      bet.color === 'RED' ? 'poolRed' : bet.color === 'GREEN' ? 'poolGreen' : 'poolViolet';
+      bet.color === 'RED' ? 'poolRed' : bet.color === 'BLUE' ? 'poolBlue' : 'poolGreen';
 
     await tx.round.update({
       where: { id: bet.roundId },
@@ -102,7 +106,4 @@ export async function cancelBet(userId: string, betId: string) {
 
     return { refunded: bet.amount };
   });
-}
-export async function getMyBetForRound(userId: string, roundId: string) {
-  return prisma.bet.findFirst({ where: { userId, roundId } });
 }

@@ -5,7 +5,7 @@ export interface Transaction {
   type: 'DEPOSIT' | 'WITHDRAW' | 'BET' | 'BET_CANCELLED' | 'WIN';
   amount: number;
   createdAt: string;
-  bet?: { color: 'RED' | 'GREEN' | 'VIOLET'; roundId: string } | null;
+  bet?: { color: 'RED' | 'BLUE' | 'GREEN'; roundId: string } | null;
 }
 
 export type HistoryFilter = 'all' | 'bets' | 'deposits' | 'withdrawals';

@@ -10,19 +10,19 @@ import { trackEvent } from '../lib/analytics';
 
 const COLORS: { key: Color; label: string; bg: string; mult: string }[] = [
   { key: 'RED', label: 'RED', bg: 'bg-red-500', mult: '2.0x' },
+  { key: 'BLUE', label: 'BLUE', bg: 'bg-blue-500', mult: '2.0x' },
   { key: 'GREEN', label: 'GREEN', bg: 'bg-emerald-500', mult: '2.0x' },
-  { key: 'VIOLET', label: 'VIOLET', bg: 'bg-violet-500', mult: '4.5x' },
 ];
 
 const CHIP_VALUES = [10, 50, 100, 500, 1000, 2000, 3500];
 
 const BLOCK_HEIGHT = 96;
-const REEL_UNIT: Color[] = ['RED', 'GREEN', 'VIOLET'];
+const REEL_UNIT: Color[] = ['RED', 'BLUE', 'GREEN'];
 const REEL_PATTERN: Color[] = Array(12).fill(REEL_UNIT).flat();
 const DURATIONS = [3400, 3900, 3600]; // slight stagger so reels don't stop in perfect unison
 
 function blockBg(c: Color) {
-  return c === 'RED' ? 'bg-red-500' : c === 'GREEN' ? 'bg-emerald-500' : 'bg-violet-500';
+  return c === 'RED' ? 'bg-red-500' : c === 'BLUE' ? 'bg-blue-500' : 'bg-emerald-500';
 }
 
 function pickLandingIndex(color: Color, minIndex: number): number {
@@ -196,8 +196,8 @@ export default function GamePage() {
         phase: 'BETTING',
         result: null,
         poolRed: 0,
+        poolBlue: 0,
         poolGreen: 0,
-        poolViolet: 0,
         startedAt: data.startedAt,
         lockedAt: null,
         resultAt: null,
@@ -230,8 +230,8 @@ export default function GamePage() {
       setMyBets((currentBets) => {
         const winningBet = currentBets.find((b) => b.color === data.result);
         if (winningBet) {
-          const multiplier = data.result === 'VIOLET' ? 4.5 : 2;
-          const amount = Math.round(winningBet.amount * multiplier);
+          // All three colors pay 2x now.
+          const amount = Math.round(winningBet.amount * 2);
           setTimeout(() => {
             setWinPopup({ amount, color: data.result });
           }, Math.max(...DURATIONS) + 300);
@@ -302,7 +302,7 @@ export default function GamePage() {
       ? 'text-emerald-400'
       : round.phase === 'LOCKED'
       ? 'text-amber-400'
-      : 'text-violet-400';
+      : 'text-blue-400';
 
   return (
     <Shell>
@@ -385,6 +385,7 @@ export default function GamePage() {
           </div>
         </div>
 
+        {/* Bet color buttons */}
         <div className="grid grid-cols-3 gap-2">
           {COLORS.map((c) => (
             <button

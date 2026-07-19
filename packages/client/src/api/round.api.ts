@@ -1,15 +1,15 @@
 import { api } from './axios';
 
 export type RoundPhase = 'BETTING' | 'LOCKED' | 'RESULT';
-export type Color = 'RED' | 'GREEN' | 'VIOLET';
+export type Color = 'RED' | 'BLUE' | 'GREEN';
 
 export interface Round {
   id: string;
   phase: RoundPhase;
   result: Color | null;
   poolRed: number;
+  poolBlue: number;
   poolGreen: number;
-  poolViolet: number;
   startedAt: string;
   lockedAt: string | null;
   resultAt: string | null;
@@ -21,8 +21,8 @@ export interface RoundHistoryEntry {
   startedAt: string;
   resultAt: string | null;
   poolRed: number;
+  poolBlue: number;
   poolGreen: number;
-  poolViolet: number;
 }
 
 export interface Bet {
@@ -44,6 +44,11 @@ export async function getRoundHistoryRequest() {
   return res.data;
 }
 
+export async function getMyBetRequest() {
+  const res = await api.get<Bet | null>('/round/my-bet');
+  return res.data;
+}
+
 export async function placeBetRequest(color: Color, amount: number) {
   const res = await api.post<Bet>('/round/bet', { color, amount });
   return res.data;
@@ -51,9 +56,5 @@ export async function placeBetRequest(color: Color, amount: number) {
 
 export async function cancelBetRequest(betId: string) {
   const res = await api.delete(`/round/bet/${betId}`);
-  return res.data;
-}
-export async function getMyBetRequest() {
-  const res = await api.get<Bet | null>('/round/my-bet');
   return res.data;
 }

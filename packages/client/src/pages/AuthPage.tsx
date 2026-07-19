@@ -175,7 +175,7 @@ export default function AuthPage() {
         <div className="flex justify-center gap-2 mb-6">
           <span className="w-3 h-3 rounded-full bg-red-500" />
           <span className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span className="w-3 h-3 rounded-full bg-violet-500" />
+          <span className="w-3 h-3 rounded-full bg-blue-500" />
         </div>
         <h1 className="text-2xl font-bold text-center mb-1">ColorWin</h1>
         <p className="text-slate-400 text-sm text-center mb-6">Play-money color prediction demo</p>

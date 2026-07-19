@@ -44,7 +44,7 @@ export default function HomePage() {
           <div className="flex justify-center gap-2 mb-4">
             <span className="w-8 h-8 rounded-lg bg-red-500" />
             <span className="w-8 h-8 rounded-lg bg-emerald-500" />
-            <span className="w-8 h-8 rounded-lg bg-violet-500" />
+            <span className="w-8 h-8 rounded-lg bg-blue-500" />
           </div>
           <button
             onClick={handlePlayClick}
@@ -65,7 +65,7 @@ export default function HomePage() {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
           <h3 className="font-semibold mb-2">How it works</h3>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Each round runs 3 minutes: 2 minutes to bet on Red, Green, or Violet, then a 1-minute
+            Each round runs 3 minutes: 2 minutes to bet on Red, Blue, or Green, then a 1-minute
             lock while the reel spins, then the result reveals and payouts hit your wallet
             instantly.
           </p>

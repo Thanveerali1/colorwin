@@ -7,7 +7,7 @@ interface HistoryPopupProps {
 }
 
 function blockBg(c: Color) {
-  return c === 'RED' ? 'bg-red-500' : c === 'GREEN' ? 'bg-emerald-500' : 'bg-violet-500';
+  return c === 'RED' ? 'bg-red-500' : c === 'BLUE' ? 'bg-blue-500' : 'bg-emerald-500';
 }
 
 function formatTime(iso: string | null) {
