@@ -3,6 +3,7 @@ import { z } from 'zod';
 const passwordSchema = z
   .string()
   .min(8, 'At least 8 characters')
+  .max(20, 'Must be 20 characters or fewer')
   .regex(/^[A-Za-z]/, 'Must start with a letter')
   .regex(/[A-Z]/, 'At least one uppercase letter')
   .regex(/[a-z]/, 'At least one lowercase letter')
@@ -17,7 +18,7 @@ export const signupSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  password: z.string().min(1).max(20),
 });
 export const requestResetSchema = z.object({
   email: z.string().email(),

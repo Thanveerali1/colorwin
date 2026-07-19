@@ -237,6 +237,7 @@ export default function AuthPage() {
               className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base outline-none focus:border-slate-500"
               required
               minLength={8}
+              maxLength={20}
             />
 
             {mode === 'login' && (
@@ -325,6 +326,7 @@ export default function AuthPage() {
               className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base outline-none focus:border-slate-500"
               required
               minLength={8}
+              maxLength={20}
             />
             <div className="flex flex-col gap-1 -mt-1 px-1">
               {getPasswordChecks(newPassword).map((check) => (
