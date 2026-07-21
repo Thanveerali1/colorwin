@@ -1,36 +1,23 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { getWallet } from '../../api/wallet.api';
+import { useWalletStore } from '../../store/walletStore';
 
 interface ShellProps {
   children: ReactNode;
 }
 
 export default function Shell({ children }: ShellProps) {
-  const [balance, setBalance] = useState<number | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const token = useAuthStore((s) => s.accessToken);
   const logout = useAuthStore((s) => s.logout);
+  const balance = useWalletStore((s) => s.balance);
+  const fetchBalance = useWalletStore((s) => s.fetchBalance);
 
   useEffect(() => {
-    if (!token) {
-      setBalance(null);
-      return;
-    }
-    getWallet()
-      .then((w) => setBalance(w.balance))
-      .catch((err) => {
-        setBalance(null);
-        // A 404 here means the token doesn't belong to a real wallet anymore
-        // (stale session from before a DB reset, or a deleted account).
-        // Force a fresh login instead of leaving the user staring at "...".
-        if (err.response?.status === 404) {
-          logout();
-          navigate('/auth');
-        }
-      });
+    if (!token) return;
+    fetchBalance();
   }, [location.pathname, token]);
 
   const navItems = [
@@ -54,7 +41,7 @@ export default function Shell({ children }: ShellProps) {
         <div className="flex items-center gap-2 font-bold text-lg">
           <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 -ml-1" />
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 -ml-1 mr-1" />
+          <span className="w-2.5 h-2.5 rounded-full bg-violet-500 -ml-1 mr-1" />
           ColorWin
         </div>
         <div className="flex items-center gap-3">

@@ -5,7 +5,7 @@
   to { transform: translateY(-288px); }
 }
 .animate-reel-slow-spin {
-  animation: reel-slow-spin 4s linear infinite;
+  animation: reel-slow-spin 0.5s linear infinite;
 }
 
 @keyframes reel-shuffle {

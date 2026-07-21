@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Shell from '../components/layout/Shell';
 import { getSocket } from '../sockets/socket';
 import { getActiveRound, placeBetRequest, cancelBetRequest, getMyBetRequest } from '../api/round.api';
@@ -7,6 +7,18 @@ import Leaderboard from '../components/game/Leaderboard';
 import WinPopup from '../components/game/WinPopup';
 import HistoryPopup from '../components/game/HistoryPopup';
 import { trackEvent } from '../lib/analytics';
+import { useWalletStore } from '../store/walletStore';
+import {
+  unlockAudio,
+  isMuted,
+  setMuted,
+  playReelTick,
+  playLeverClunk,
+  playClick,
+  playWinChime,
+} from '../lib/sound';
+import { startBgm, stopBgm, updateBgmMuteState } from '../lib/bgm';
+import { scheduleTicksForSpin, clearScheduledTicks } from '../lib/reelSync';
 
 const COLORS: { key: Color; label: string; bg: string; mult: string }[] = [
   { key: 'RED', label: 'RED', bg: 'bg-red-500', mult: '2.0x' },
@@ -19,7 +31,10 @@ const CHIP_VALUES = [10, 50, 100, 500, 1000, 2000, 3500];
 const BLOCK_HEIGHT = 96;
 const REEL_UNIT: Color[] = ['RED', 'BLUE', 'GREEN'];
 const REEL_PATTERN: Color[] = Array(12).fill(REEL_UNIT).flat();
-const DURATIONS = [3400, 3900, 3600]; // slight stagger so reels don't stop in perfect unison
+const DURATIONS = [3400, 3900, 3600];
+
+const SHUFFLE_TICK_INTERVAL_MS = 500 / REEL_UNIT.length;
+const IDLE_TICK_INTERVAL_MS = 500 / REEL_UNIT.length;
 
 function blockBg(c: Color) {
   return c === 'RED' ? 'bg-red-500' : c === 'BLUE' ? 'bg-blue-500' : 'bg-emerald-500';
@@ -40,7 +55,7 @@ function phaseDurationLeft(round: Round | null): number {
 
   if (round.phase === 'BETTING' || round.phase === 'LOCKED') {
     const start = new Date(round.startedAt).getTime();
-    const end = start + 180_000; // one continuous 3-minute countdown
+    const end = start + 180_000;
     return Math.max(0, Math.floor((end - now) / 1000));
   }
 
@@ -145,9 +160,58 @@ export default function GamePage() {
 
   const [winPopup, setWinPopup] = useState<{ amount: number; color: Color } | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [muted, setMutedState] = useState(false);
+
+  const fetchBalance = useWalletStore((s) => s.fetchBalance);
+
+  const loopTickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const spinTickTimeoutsRef = useRef<number[]>([]);
+  const bgmStartedRef = useRef(false);
+
+  useEffect(() => {
+    setMutedState(isMuted());
+    return () => {
+      stopBgm();
+      if (loopTickIntervalRef.current) clearInterval(loopTickIntervalRef.current);
+      clearScheduledTicks(spinTickTimeoutsRef.current);
+    };
+  }, []);
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+    unlockAudio();
+    updateBgmMuteState();
+  }
+
+  function handleUserGesture() {
+    unlockAudio();
+    if (!bgmStartedRef.current) {
+      bgmStartedRef.current = true;
+      startBgm();
+    }
+  }
+
+  useEffect(() => {
+    if (reelState === 'idle' || reelState === 'shuffle') {
+      const intervalMs = reelState === 'idle' ? IDLE_TICK_INTERVAL_MS : SHUFFLE_TICK_INTERVAL_MS;
+      loopTickIntervalRef.current = setInterval(() => playReelTick(), intervalMs);
+    } else if (loopTickIntervalRef.current) {
+      clearInterval(loopTickIntervalRef.current);
+      loopTickIntervalRef.current = null;
+    }
+    return () => {
+      if (loopTickIntervalRef.current) {
+        clearInterval(loopTickIntervalRef.current);
+        loopTickIntervalRef.current = null;
+      }
+    };
+  }, [reelState]);
 
   function landReelsOn(color: Color) {
     setLeverPulling(true);
+    playLeverClunk();
     setTimeout(() => setLeverPulling(false), 1300);
 
     const t0 = pickLandingIndex(color, 20);
@@ -162,6 +226,14 @@ export default function GamePage() {
       requestAnimationFrame(() => {
         setTransitioning(true);
         setTargets([t0, t1, t2]);
+
+        clearScheduledTicks(spinTickTimeoutsRef.current);
+        const allIds: number[] = [];
+        [t0, t1, t2].forEach((target, i) => {
+          const ids = scheduleTicksForSpin(target * BLOCK_HEIGHT, DURATIONS[i], BLOCK_HEIGHT, playReelTick);
+          allIds.push(...ids);
+        });
+        spinTickTimeoutsRef.current = allIds;
       });
     });
 
@@ -230,10 +302,11 @@ export default function GamePage() {
       setMyBets((currentBets) => {
         const winningBet = currentBets.find((b) => b.color === data.result);
         if (winningBet) {
-          // All three colors pay 2x now.
           const amount = Math.round(winningBet.amount * 2);
           setTimeout(() => {
             setWinPopup({ amount, color: data.result });
+            playWinChime();
+            fetchBalance();
           }, Math.max(...DURATIONS) + 300);
           trackEvent('round_won', { color: data.result, amount });
         }
@@ -266,6 +339,7 @@ export default function GamePage() {
       setMyBets((prev) => [...prev, bet]);
       trackEvent('bet_placed', { color: selectedColor, amount: selectedChip });
       setSelectedColor(null);
+      fetchBalance();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not place bet.');
     }
@@ -275,6 +349,7 @@ export default function GamePage() {
     try {
       await cancelBetRequest(betId);
       setMyBets((prev) => prev.filter((b) => b.id !== betId));
+      fetchBalance();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not cancel bet.');
     }
@@ -302,11 +377,11 @@ export default function GamePage() {
       ? 'text-emerald-400'
       : round.phase === 'LOCKED'
       ? 'text-amber-400'
-      : 'text-blue-400';
+      : 'text-violet-400';
 
   return (
     <Shell>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-5" onClickCapture={handleUserGesture}>
         <div className="bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 flex items-center justify-between">
           <div>
             <p className={`font-bold text-sm ${phaseColor}`}>{phaseLabel}</p>
@@ -317,6 +392,13 @@ export default function GamePage() {
               {mm}:{ss}
             </p>
             <button
+              onClick={toggleMute}
+              className="text-xs bg-slate-800 border border-slate-700 rounded-full w-8 h-8 flex items-center justify-center"
+              title={muted ? 'Unmute' : 'Mute'}
+            >
+              {muted ? '🔇' : '🔊'}
+            </button>
+            <button
               onClick={() => setShowHistory(true)}
               className="text-xs bg-slate-800 border border-slate-700 rounded-full px-3 py-1.5 font-semibold text-slate-300"
             >
@@ -325,7 +407,6 @@ export default function GamePage() {
           </div>
         </div>
 
-        {/* Slot machine cabinet */}
         <div className="relative pr-11">
           <div className="relative rounded-[26px] border-4 border-slate-700 bg-gradient-to-b from-slate-800 via-slate-900 to-black p-4 shadow-2xl">
             <div className="flex items-center justify-center gap-2 mb-3">
@@ -385,13 +466,15 @@ export default function GamePage() {
           </div>
         </div>
 
-        {/* Bet color buttons */}
         <div className="grid grid-cols-3 gap-2">
           {COLORS.map((c) => (
             <button
               key={c.key}
               disabled={!bettingOpen || hasBetThisRound}
-              onClick={() => setSelectedColor(c.key)}
+              onClick={() => {
+                setSelectedColor(c.key);
+                playClick();
+              }}
               className={`${c.bg} rounded-xl py-4 text-center font-bold text-sm text-white disabled:opacity-30 ${
                 selectedColor === c.key ? 'ring-2 ring-white' : ''
               }`}
@@ -407,7 +490,10 @@ export default function GamePage() {
             <button
               key={v}
               disabled={!bettingOpen || hasBetThisRound}
-              onClick={() => setSelectedChip(v)}
+              onClick={() => {
+                setSelectedChip(v);
+                playClick();
+              }}
               className={`rounded-full px-3 py-1.5 text-xs font-mono border disabled:opacity-30 ${
                 selectedChip === v
                   ? 'bg-amber-400 text-slate-900 border-amber-400'
