@@ -1,17 +1,11 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { env } from '../config/env';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: env.gmailUser,
-    pass: env.gmailAppPassword,
-  },
-});
+const resend = new Resend(env.resendApiKey);
 
 export async function sendOtpEmail(to: string, otp: string) {
-  await transporter.sendMail({
-    from: `"ColorWin" <${env.gmailUser}>`,
+  const { error } = await resend.emails.send({
+    from: env.resendFromEmail,
     to,
     subject: 'Your ColorWin password reset code',
     html: `
@@ -23,4 +17,11 @@ export async function sendOtpEmail(to: string, otp: string) {
       </div>
     `,
   });
+
+  // The Resend SDK doesn't throw on API-level failures (invalid key, unverified
+  // domain, etc.) -- it returns { error } instead. Throw explicitly so the
+  // existing .catch() logging in auth.service.ts actually sees these.
+  if (error) {
+    throw new Error(`Resend error: ${error.message}`);
+  }
 }

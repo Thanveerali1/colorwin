@@ -53,3 +53,11 @@ export const googleLoginLimiter = rateLimit({
   legacyHeaders: false,
   handler: limitHandler,
 });
+
+export const profileUpdateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // authenticated route, low abuse risk -- mainly a sanity cap
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: limitHandler,
+});

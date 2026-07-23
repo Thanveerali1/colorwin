@@ -6,6 +6,7 @@ import { walletRouter } from './modules/wallet/wallet.controller';
 import { transactionsRouter } from './modules/transactions/transactions.controller';
 import { roundRouter } from './modules/round/round.controller';
 import { leaderboardRouter } from './modules/leaderboard/leaderboard.controller';
+import { userRouter } from './modules/user/user.controller';
 
 export const app = express();
 
@@ -29,5 +30,6 @@ app.use('/api/wallet', walletRouter);
 app.use('/api/transactions', transactionsRouter);
 app.use('/api/round', roundRouter);
 app.use('/api/leaderboard', leaderboardRouter);
+app.use('/api/user', userRouter);
 
 export default app;

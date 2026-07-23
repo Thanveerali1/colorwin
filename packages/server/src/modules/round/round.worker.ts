@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { redisConnection } from '../../config/redis';
-import { lockRound, resolveRound, startNextRound } from './round.engine';
+import { lockRound, previewResult, finalizeRound, startNextRound } from './round.engine';
 
 export const roundWorker = new Worker(
   'round-phase-transitions',
@@ -8,8 +8,10 @@ export const roundWorker = new Worker(
     switch (job.name) {
       case 'lockRound':
         return lockRound(job.data.roundId);
-      case 'resolveRound':
-        return resolveRound(job.data.roundId);
+      case 'previewResult':
+        return previewResult(job.data.roundId);
+      case 'finalizeRound':
+        return finalizeRound(job.data.roundId, job.data.result);
       case 'startNextRound':
         return startNextRound();
     }

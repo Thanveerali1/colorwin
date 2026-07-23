@@ -19,6 +19,12 @@ export const env = {
   clientUrl: process.env.CLIENT_URL || 'http://127.0.0.1:5173',
   appUrl: process.env.APP_URL || 'http://127.0.0.1:5173',
   googleClientId: required('GOOGLE_CLIENT_ID'),
-  gmailUser: required('GMAIL_USER'),
-  gmailAppPassword: required('GMAIL_APP_PASSWORD'),
+  // Resend sends over HTTPS, not SMTP -- unaffected by Render (and most
+  // other PaaS providers) blocking outbound SMTP ports on free tiers.
+  resendApiKey: required('RESEND_API_KEY'),
+  // Defaults to Resend's shared sandbox sender, which works with zero setup
+  // but has weaker deliverability (may land in spam more often). Once you've
+  // verified your own domain in the Resend dashboard, set RESEND_FROM_EMAIL
+  // to something like "ColorWin <noreply@yourdomain.com>" instead.
+  resendFromEmail: process.env.RESEND_FROM_EMAIL || 'ColorWin <onboarding@resend.dev>',
 };

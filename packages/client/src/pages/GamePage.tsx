@@ -33,8 +33,25 @@ const REEL_UNIT: Color[] = ['RED', 'BLUE', 'GREEN'];
 const REEL_PATTERN: Color[] = Array(12).fill(REEL_UNIT).flat();
 const DURATIONS = [3400, 3900, 3600];
 
-const SHUFFLE_TICK_INTERVAL_MS = 500 / REEL_UNIT.length;
-const IDLE_TICK_INTERVAL_MS = 500 / REEL_UNIT.length;
+// How long before the round's official end the client starts its landing
+// animation -- must match the server's REVEAL_LEAD_MS (round.engine.ts) so
+// the reels finish landing right as the round timer hits 00:00, instead of
+// spinning for several more seconds after. 5s: betting+locked runs 2:55,
+// the reel lands and reveals within the final :05 of the same 3:00 clock.
+const REVEAL_LEAD_MS = 5_000;
+
+// Idle/shuffle loop speed escalates across the 3-minute round: minute 1 at
+// the original baseline speed, minute 2 a bit faster, and minute 3 (the
+// LOCKED/spinning-toward-result phase) faster still. Duration is ms per full
+// loop of the CSS keyframe (see index.css reel-slow-spin/reel-shuffle,
+// travelling the same 288px either way -- only the speed changes).
+const SPIN_LOOP_MS = { slow: 500, medium: 380, fast: 260 };
+
+function loopDurationMsFor(phase: Round['phase'] | undefined, secondsLeft: number): number {
+  if (phase === 'LOCKED') return SPIN_LOOP_MS.fast; // minute 3
+  if (secondsLeft > 120) return SPIN_LOOP_MS.slow; // minute 1 (180s -> 120s remaining)
+  return SPIN_LOOP_MS.medium; // minute 2 (120s -> 60s remaining)
+}
 
 function blockBg(c: Color) {
   return c === 'RED' ? 'bg-red-500' : c === 'BLUE' ? 'bg-blue-500' : 'bg-emerald-500';
@@ -52,19 +69,13 @@ function pickLandingIndex(color: Color, minIndex: number): number {
 function phaseDurationLeft(round: Round | null): number {
   if (!round) return 0;
   const now = Date.now();
-
-  if (round.phase === 'BETTING' || round.phase === 'LOCKED') {
-    const start = new Date(round.startedAt).getTime();
-    const end = start + 180_000;
-    return Math.max(0, Math.floor((end - now) / 1000));
-  }
-
-  if (round.phase === 'RESULT' && round.resultAt) {
-    const end = new Date(round.resultAt).getTime() + 6_000;
-    return Math.max(0, Math.floor((end - now) / 1000));
-  }
-
-  return 0;
+  // One continuous 3-minute (180s) clock for the whole round, regardless of
+  // phase. Result reveal lands inside the final REVEAL_LEAD_MS of this same
+  // window (see server round.engine.ts) -- there's no separate countdown
+  // that starts up after this one reaches 00:00.
+  const start = new Date(round.startedAt).getTime();
+  const end = start + 180_000;
+  return Math.max(0, Math.floor((end - now) / 1000));
 }
 
 type ReelState = 'idle' | 'shuffle' | 'spinning' | 'revealed';
@@ -76,9 +87,10 @@ interface ReelColumnProps {
   reversed?: boolean;
   durationMs: number;
   resultColor: Color | null;
+  loopMs: number;
 }
 
-function ReelColumn({ state, targetIndex, transitioning, reversed, durationMs, resultColor }: ReelColumnProps) {
+function ReelColumn({ state, targetIndex, transitioning, reversed, durationMs, resultColor, loopMs }: ReelColumnProps) {
   const flipStyle = reversed ? { transform: 'scaleY(-1)' as const } : undefined;
 
   if (state === 'revealed' && resultColor) {
@@ -96,6 +108,8 @@ function ReelColumn({ state, targetIndex, transitioning, reversed, durationMs, r
   const spinClass =
     state === 'idle' ? 'animate-reel-slow-spin' : state === 'shuffle' ? 'animate-reel-shuffle' : '';
 
+  const loopStyle = state === 'idle' || state === 'shuffle' ? { animationDuration: `${loopMs}ms` } : undefined;
+
   return (
     <div className="w-full h-full overflow-hidden" style={flipStyle}>
       <div
@@ -108,7 +122,7 @@ function ReelColumn({ state, targetIndex, transitioning, reversed, durationMs, r
                   ? `transform ${durationMs}ms cubic-bezier(0.12,0.85,0.15,1)`
                   : 'none',
               }
-            : undefined
+            : loopStyle
         }
       >
         {REEL_PATTERN.map((c, i) => (
@@ -167,6 +181,11 @@ export default function GamePage() {
   const loopTickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinTickTimeoutsRef = useRef<number[]>([]);
   const bgmStartedRef = useRef(false);
+  // Tracks which round has already had its landing animation triggered by
+  // 'round:landing', so the 'round:result' handler knows whether to fall
+  // back to landing late (e.g. client connected mid-round and missed it)
+  // or just confirm/settle without re-triggering the animation.
+  const landedRoundIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setMutedState(isMuted());
@@ -193,9 +212,11 @@ export default function GamePage() {
     }
   }
 
+  const loopMs = loopDurationMsFor(round?.phase, secondsLeft);
+
   useEffect(() => {
     if (reelState === 'idle' || reelState === 'shuffle') {
-      const intervalMs = reelState === 'idle' ? IDLE_TICK_INTERVAL_MS : SHUFFLE_TICK_INTERVAL_MS;
+      const intervalMs = loopMs / REEL_UNIT.length;
       loopTickIntervalRef.current = setInterval(() => playReelTick(), intervalMs);
     } else if (loopTickIntervalRef.current) {
       clearInterval(loopTickIntervalRef.current);
@@ -207,7 +228,7 @@ export default function GamePage() {
         loopTickIntervalRef.current = null;
       }
     };
-  }, [reelState]);
+  }, [reelState, loopMs]);
 
   function landReelsOn(color: Color) {
     setLeverPulling(true);
@@ -280,6 +301,7 @@ export default function GamePage() {
       setTransitioning(false);
       setTargets([0, 0, 0]);
       setWinPopup(null);
+      landedRoundIdRef.current = null;
     });
 
     socket.on('round:phase_changed', (data: { roundId: string; phase: 'LOCKED' }) => {
@@ -291,23 +313,43 @@ export default function GamePage() {
       setReelState('shuffle');
     });
 
+    // Fires ~REVEAL_LEAD_MS before the round's official end. Starts the
+    // landing animation early so it finishes right as the round timer hits
+    // 00:00, instead of continuing to spin after the countdown ends. Does
+    // NOT touch round.phase -- the timer keeps counting down from the
+    // existing BETTING/LOCKED calculation until the real 'round:result'
+    // arrives at the correct time.
+    socket.on('round:landing', (data: { roundId: string; result: Color }) => {
+      landedRoundIdRef.current = data.roundId;
+      landReelsOn(data.result);
+    });
+
     socket.on('round:result', (data: { roundId: string; result: Color }) => {
       setRound((prev) =>
         prev && prev.id === data.roundId
           ? { ...prev, phase: 'RESULT', result: data.result, resultAt: new Date().toISOString() }
           : prev
       );
-      landReelsOn(data.result);
+
+      // Normal path: 'round:landing' already started the animation ~4s ago
+      // and it has finished landing by now -- nothing more to trigger.
+      // Fallback path: this client missed 'round:landing' (e.g. connected
+      // mid-round), so land the reels now, same as the old behavior.
+      const alreadyLanded = landedRoundIdRef.current === data.roundId;
+      if (!alreadyLanded) {
+        landReelsOn(data.result);
+      }
 
       setMyBets((currentBets) => {
         const winningBet = currentBets.find((b) => b.color === data.result);
         if (winningBet) {
           const amount = Math.round(winningBet.amount * 2);
+          const popupDelay = alreadyLanded ? 0 : Math.max(...DURATIONS) + 300;
           setTimeout(() => {
             setWinPopup({ amount, color: data.result });
             playWinChime();
             fetchBalance();
-          }, Math.max(...DURATIONS) + 300);
+          }, popupDelay);
           trackEvent('round_won', { color: data.result, amount });
         }
         return currentBets;
@@ -317,6 +359,7 @@ export default function GamePage() {
     return () => {
       socket.off('round:started');
       socket.off('round:phase_changed');
+      socket.off('round:landing');
       socket.off('round:result');
     };
   }, []);
@@ -369,15 +412,23 @@ export default function GamePage() {
   const ss = String(secondsLeft % 60).padStart(2, '0');
   const gearsSpinning = reelState === 'shuffle' || reelState === 'spinning';
 
-  const phaseLabel =
-    round.phase === 'BETTING' ? 'Bets open' : round.phase === 'LOCKED' ? 'Locked — spinning' : 'Result';
+  // Once the reels have actually landed on the result, show "Result" right
+  // away -- don't wait for the server's official phase flip, which now
+  // happens up to REVEAL_LEAD_MS later (see round.engine.ts). Keeps the
+  // label in sync with what's visually on screen.
+  const resultShowing = reelState === 'revealed' || round.phase === 'RESULT';
 
-  const phaseColor =
-    round.phase === 'BETTING'
-      ? 'text-emerald-400'
-      : round.phase === 'LOCKED'
-      ? 'text-amber-400'
-      : 'text-violet-400';
+  const phaseLabel = resultShowing
+    ? 'Result'
+    : round.phase === 'BETTING'
+    ? 'Bets open'
+    : 'Locked — spinning';
+
+  const phaseColor = resultShowing
+    ? 'text-violet-400'
+    : round.phase === 'BETTING'
+    ? 'text-emerald-400'
+    : 'text-amber-400';
 
   return (
     <Shell>
@@ -428,6 +479,7 @@ export default function GamePage() {
                 transitioning={transitioning}
                 durationMs={DURATIONS[0]}
                 resultColor={revealedColor}
+                loopMs={loopMs}
               />
               <ReelColumn
                 state={reelState}
@@ -436,6 +488,7 @@ export default function GamePage() {
                 reversed
                 durationMs={DURATIONS[1]}
                 resultColor={revealedColor}
+                loopMs={loopMs}
               />
               <ReelColumn
                 state={reelState}
@@ -443,6 +496,7 @@ export default function GamePage() {
                 transitioning={transitioning}
                 durationMs={DURATIONS[2]}
                 resultColor={revealedColor}
+                loopMs={loopMs}
               />
             </div>
 
